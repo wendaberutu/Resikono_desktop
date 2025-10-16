@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32 Stream + Deteksi Kotoran Stabil</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f5f5f5;
+            margin: 20px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #streamsContainer {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .cameraBox {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .cameraBox h3 {
+            margin: 5px 0;
+        }
+
+        .canvasContainer {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        canvas,
+        img {
+            border: 1px solid #333;
+            border-radius: 5px;
+            max-width: 320px;
+            max-height: 240px;
+        }
+
+        .count {
+            margin-top: 5px;
+            font-weight: bold;
+            color: red;
+        }
+
+        .controls {
+            margin-top: 25px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            display: inline-block;
+        }
+
+        label {
+            display: block;
+            margin: 8px 0 3px;
+            font-weight: bold;
+        }
+
+        input[type=range] {
+            width: 200px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>ESP32 Stream + Deteksi Kotoran Stabil</h2>
+
+    <div id="streamsContainer">
+        <div class="cameraBox" id="boxKN">
+            <h3>KN</h3>
+            <div class="canvasContainer">
+                <img id="imgKN" width="320" height="240">
+                <canvas id="detectKN" width="320" height="240"></canvas>
+            </div>
+            <div class="count" id="countKN">Kotoran: 0</div>
+        </div>
+
+        <div class="cameraBox" id="boxKR">
+            <h3>KR</h3>
+            <div class="canvasContainer">
+                <img id="imgKR" width="320" height="240">
+                <canvas id="detectKR" width="320" height="240"></canvas>
+            </div>
+            <div class="count" id="countKR">Kotoran: 0</div>
+        </div>
+
+        <div class="cameraBox" id="boxBW">
+            <h3>BW</h3>
+            <div class="canvasContainer">
+                <img id="imgBW" width="320" height="240">
+                <canvas id="detectBW" width="320" height="240"></canvas>
+            </div>
+            <div class="count" id="countBW">Kotoran: 0</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <label>Kontras Threshold: <span id="kontrasVal">10</span></label>
+        <input type="range" id="kontrasSlider" min="1" max="50" value="10">
+        <label>Gelap Threshold: <span id="gelapVal">130</span></label>
+        <input type="range" id="gelapSlider" min="10" max="255" value="130">
+        <label>Min Area: <span id="minAreaVal">0</span></label>
+        <input type="range" id="minAreaSlider" min="0" max="500" value="0">
+        <label>Max Area: <span id="maxAreaVal">300</span></label>
+        <input type="range" id="maxAreaSlider" min="50" max="2000" value="300">
+    </div>
+
+    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+    <script>
+        // === Setup buffer & references ===
+        const codes = ['KN', 'KR', 'BW'];
+        const buffers = {};
+        codes.forEach(code => {
+            buffers[code] = {
+                img: document.getElementById('img' + code),
+                canvas: document.createElement('canvas'),
+                ctx: null,
+                detectCanvas: document.getElementById('detect' + code),
+                detectCtx: document.getElementById('detect' + code).getContext('2d'),
+                countEl: document.getElementById('count' + code)
+            };
+            buffers[code].ctx = buffers[code].canvas.getContext('2d');
+        });
+
+        // Rotasi manual
+        function drawRotatedImage(code, imgObj) {
+            const buf = buffers[code];
+            buf.canvas.width = imgObj.width;
+            buf.canvas.height = imgObj.height;
+            buf.ctx.save();
+            buf.ctx.clearRect(0, 0, buf.canvas.width, buf.canvas.height);
+            buf.ctx.translate(buf.canvas.width / 2, buf.canvas.height / 2);
+            buf.ctx.rotate(Math.PI); // rotate 180°
+            if (code !== 'KR') buf.ctx.scale(-1, 1); // mirror untuk KN & BW
+            buf.ctx.drawImage(imgObj, -imgObj.width / 2, -imgObj.height / 2);
+            buf.ctx.restore();
+        }
+
+        // Enhance contrast
+        function enhanceContrast(imageData, factor = 1.05) {
+            const data = imageData.data;
+            const avgGray = data.reduce((sum, v, i) => i % 4 !== 3 ? sum + v : sum, 0) / (data.length / 4);
+            for (let i = 0; i < data.length; i += 4) {
+                for (let c = 0; c < 3; c++) {
+                    let val = avgGray + factor * (data[i + c] - avgGray);
+                    data[i + c] = Math.max(0, Math.min(255, val));
+                }
+            }
+            return imageData;
+        }
+
+        // Terima frame
+        window.electronAPI.onFrame(async ({ b64, kodeAlat }) => {
+            if (!buffers[kodeAlat]) return;
+            const buf = buffers[kodeAlat];
+            const imgObj = new Image();
+            imgObj.src = 'data:image/jpeg;base64,' + b64;
+            await imgObj.decode();
+            drawRotatedImage(kodeAlat, imgObj);
+            let frame = buf.ctx.getImageData(0, 0, buf.canvas.width, buf.canvas.height);
+            frame = enhanceContrast(frame, 1);
+            buf.ctx.putImageData(frame, 0, 0);
+            buf.img.src = buf.canvas.toDataURL();
+            detectKotoran(buf);
+        });
+
+        // Frame loop
+        async function frameLoop() {
+            while (true) {
+                for (const code of codes) {
+                    try { await window.electronAPI.requestImage(code); } catch (e) { console.error(e); }
+                    await new Promise(r => setTimeout(r, 500));
+                }
+            }
+        }
+        frameLoop();
+
+        // Deteksi kotoran stabil
+        function detectKotoran(buf) {
+            if (!cv || !buf.canvas) return;
+            let kontras_thresh = parseInt(document.getElementById('kontrasSlider').value);
+            let gelap_thresh = parseInt(document.getElementById('gelapSlider').value);
+            let min_area = parseInt(document.getElementById('minAreaSlider').value);
+            let max_area = parseInt(document.getElementById('maxAreaSlider').value);
+            document.getElementById('kontrasVal').innerText = kontras_thresh;
+            document.getElementById('gelapVal').innerText = gelap_thresh;
+            document.getElementById('minAreaVal').innerText = min_area;
+            document.getElementById('maxAreaVal').innerText = max_area;
+
+            let src = cv.imread(buf.canvas);
+            let dst = src.clone();
+            let gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+            // === Adaptive threshold untuk gelap ===
+            let maskGelap = new cv.Mat();
+            cv.adaptiveThreshold(gray, maskGelap, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY_INV, 11, 2);
+
+            // Sobel / gradien
+            let grad_x = new cv.Mat(), grad_y = new cv.Mat();
+            let abs_grad_x = new cv.Mat(), abs_grad_y = new cv.Mat();
+            cv.Sobel(gray, grad_x, cv.CV_16S, 1, 0);
+            cv.Sobel(gray, grad_y, cv.CV_16S, 0, 1);
+            cv.convertScaleAbs(grad_x, abs_grad_x);
+            cv.convertScaleAbs(grad_y, abs_grad_y);
+            let kontras = new cv.Mat();
+            cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, kontras);
+
+            let maskKontras = new cv.Mat();
+            cv.threshold(kontras, maskKontras, kontras_thresh, 255, cv.THRESH_BINARY);
+
+            // Gabung mask
+            let finalMask = new cv.Mat();
+            cv.bitwise_and(maskGelap, maskKontras, finalMask);
+
+            // === Min-pooling / erode untuk pertahankan titik kecil ===
+            let kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(3, 3));
+            cv.erode(finalMask, finalMask, kernel);
+
+            // Kontur
+            let contours = new cv.MatVector(), hierarchy = new cv.Mat();
+            cv.findContours(finalMask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+            let count = 0;
+            for (let i = 0; i < contours.size(); i++) {
+                let cnt = contours.get(i);
+                let area = cv.contourArea(cnt);
+                if (area >= min_area && area <= max_area) {
+                    let circle = cv.minEnclosingCircle(cnt);
+                    cv.circle(dst, circle.center, circle.radius, [255, 0, 0, 255], 2);
+                    count++;
+                }
+                cnt.delete();
+            }
+
+            cv.imshow(buf.detectCanvas, dst);
+            buf.countEl.innerText = 'Kotoran: ' + count;
+
+            // Cleanup
+            gray.delete(); maskGelap.delete(); grad_x.delete(); grad_y.delete();
+            abs_grad_x.delete(); abs_grad_y.delete(); kontras.delete();
+            maskKontras.delete(); finalMask.delete(); contours.delete(); hierarchy.delete();
+            src.delete(); dst.delete(); kernel.delete();
+        }
+
+        // Slider kontrol
+        document.querySelectorAll('input[type=range]').forEach(slider => {
+            slider.addEventListener('input', () => { codes.forEach(c => detectKotoran(buffers[c])); });
+        });
+    </script>
+</body>
+
+</html>

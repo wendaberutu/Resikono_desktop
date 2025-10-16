@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>RESIKONO</title>
+    <style>
+        #mainGrid {
+            width: 100%;
+            height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #mainGrid .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 0.5fr;
+            /* 3 kamera besar + slider kecil */
+            gap: 10px;
+            height: calc(100% - 50px);
+            /* sisakan ruang buat h2 */
+        }
+
+        .cameraBox {
+            background: #fff;
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+
+        .canvasContainer img,
+        .canvasContainer canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .controls {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+
+        h2 {
+            grid-column: span 2;
+            text-align: center;
+            margin: 10px 0;
+            color: #333;
+        }
+
+        .cameraBox,
+        .controls {
+            background: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: top;
+            justify-content: top;
+        }
+
+        .cameraBox h3 {
+            margin: 5px 0;
+        }
+
+        .canvasContainer img,
+        .canvasContainer canvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+
+        canvas,
+        img {
+            border: 1px solid #333;
+            border-radius: 5px;
+            max-width: 100%;
+            max-height: 320px;
+        }
+
+        .count {
+            margin-top: 5px;
+            font-weight: bold;
+            color: red;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+
+        input[type=range] {
+            width: 100%;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #loadingPopup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            color: white;
+            z-index: 9999;
+        }
+
+        #loadingPopup .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            /* supaya sejajar vertikal */
+            margin-bottom: 5px;
+            /* jarak antar label */
+        }
+
+        .status-wrapper {
+            text-align: center;
+            /* teks di tengah horizontal */
+        }
+
+        #status-kebersihan {
+            display: inline-block;
+            /* supaya bisa di-align */
+            font-weight: bold;
+            /* opsional, biar kelihatan */
+        }
+
+        .settings-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: none;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        .settings-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            z-index: 1001;
+        }
+
+        .settings-popup h3 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        .settings-input {
+            width: 100%;
+            padding: 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .settings-submit {
+            width: 100%;
+            padding: 5px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .settings-content {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .settings-content label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .settings-close {
+            margin-top: 10px;
+            width: 100%;
+            padding: 5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script src="js/opencv.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div>
+        <!-- Custom Alert -->
+        <div id="customAlert"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[60]">
+            <div class="bg-white rounded-lg p-6 w-80 shadow-lg text-center border-t-4 border-red-600">
+                <div class="flex flex-col items-center text-red-700">
+                    <i class="fas fa-exclamation-triangle text-4xl mb-3"></i>
+                    <p id="customAlertMessage" class="mb-4 font-semibold"></p>
+                </div>
+                <button onclick="closeCustomAlert()" class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                    OK
+                </button>
+            </div>
+        </div>
+        <div id="customConfirmModal"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[70]">
+            <div class="bg-white rounded-lg p-6 w-96 shadow-lg text-center border-t-4 border-yellow-500">
+                <div class="flex justify-center text-yellow-600 text-4xl mb-3">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <p id="customConfirmMessage" class="mb-6 font-semibold text-lg"></p>
+                <div class="flex justify-center gap-4">
+                    <button id="confirmBtnCancel" class="px-6 py-2 bg-gray-300 rounded hover:bg-gray-400">
+                        Batal
+                    </button>
+                    <button id="confirmBtnOk" class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                        Ya, Lanjutkan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainGrid">
+        <div class="relative w-full mb-4">
+            <!-- Judul tetap di tengah -->
+            <h2 class="text-xl font-bold text-center mt-4">RESIKONO</h2>
+        </div>
+
+
+        <!-- Grid utama -->
+        <div class="grid">
+            <!-- Grid 1 -->
+            <div class="cameraBox" id="boxKN">
+                <h3>Kamera Kanan</h3>
+                <div class="canvasContainer">
+                    <img id="imgKN" width="480" height="360">
+                    <canvas id="detectKN" width="480" height="360"></canvas>
+                </div>
+                <div class="count" id="countKN">Kotoran: 0</div>
+            </div>
+
+            <!-- Grid 2 -->
+            <div class="cameraBox" id="boxKR">
+                <h3>Kamera Kiri</h3>
+                <div class="canvasContainer">
+                    <img id="imgKR" width="480" height="360">
+                    <canvas id="detectKR" width="480" height="360"></canvas>
+                </div>
+                <div class="count" id="countKR">Kotoran: 0</div>
+            </div>
+
+            <!-- Grid 3 -->
+            <div class="cameraBox" id="boxBW">
+                <h3>Kamera Bawah</h3>
+                <div class="canvasContainer">
+                    <img id="imgBW" width="480" height="360">
+                    <canvas id="detectBW" width="480" height="360"></canvas>
+                </div>
+                <div class="count" id="countBW">Kotoran: 0</div>
+            </div>
+            <!-- Container Status Terima/Tidak -->
+            <div class="status-container relative p-4 border rounded-lg shadow-md bg-white w-64">
+                <!-- Header jumlah titik -->
+                <div class="controls-row mb-3 text-center">
+                    <label class="font-semibold me-2">Jumlah titik kotor: </label>
+                    <label id="jumlah_titik" class="font-bold text-red-600">-</label>
+                </div>
+
+                <!-- Icon status -->
+                <div class="status flex justify-center mb-3">
+                    <img id="statusIMG" src="icons/bersih.jpg" alt="status"
+                        class="w-24 h-24 object-contain border-none outline-none shadow-none">
+                </div>
+
+                <!-- Pesan status -->
+                <div class="status-wrapper text-center mb-4">
+                    <label id="status-kebersihan" class="text-sm font-medium text-gray-700">
+                        Yuk Dicek Kebersihan Sarangnya
+                    </label>
+                </div>
+
+                <!-- ====== Bagian bawah: Status fokus + tombol ====== -->
+                <div class="absolute bottom-2 left-0 w-full px-2">
+                    <!-- Status + tombol fokuskan -->
+                    <div class="flex flex-col space-y-1 mb-2">
+                        <!-- Kanan -->
+                        <div class="flex items-center space-x-2">
+                            <label id="status_fokus_kamera_kanan"
+                                class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
+                                <i class="fas fa-camera text-gray-700"></i>
+                                <span>Kanan: Belum fokus</span>
+                            </label>
+                            <button onclick="Fokuskan('fokusKameraKanan')"
+                                class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
+                                Fokuskan
+                            </button>
+                        </div>
+
+                        <!-- Kiri -->
+                        <div class="flex items-center space-x-2">
+                            <label id="status_fokus_kamera_kiri"
+                                class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
+                                <i class="fas fa-camera text-gray-700"></i>
+                                <span>Kiri: Belum fokus</span>
+                            </label>
+                            <button onclick="Fokuskan('fokusKameraKiri')"
+                                class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
+                                Fokuskan
+                            </button>
+                        </div>
+
+                        <!-- Bawah -->
+                        <div class="flex items-center space-x-2">
+                            <label id="status_fokus_kamera_bawah"
+                                class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
+                                <i class="fas fa-camera text-gray-700"></i>
+                                <span>Bawah: Belum fokus</span>
+                            </label>
+                            <button onclick="Fokuskan('fokusKameraBawah')"
+                                class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
+                                Fokuskan
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Setting -->
+                    <div class="flex justify-center mt-2">
+                        <button onclick="showKodeUserModal()"
+                            class="w-full text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
+                            <i class="fas fa-cog mr-1"></i>
+                            <span>Setting</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Kode User -->
+            <div id="modalKodeUser"
+                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+                <div class="bg-white rounded-lg p-6 w-80 shadow-lg">
+                    <h2 class="text-xl font-bold mb-4 text-center">Masukkan Password</h2>
+                    <input type="password" id="inputKodeUser" class="w-full border px-3 py-2 rounded mb-4"
+                        placeholder="Kode User">
+                    <div class="flex justify-between gap-2">
+                        <button onclick="tutupKodeUserModal()"
+                            class="w-1/2 px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Tutup</button>
+                        <button onclick="verifikasiKodeUser()"
+                            class="w-1/2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Simpan</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Setting -->
+            <div id="modalSetting"
+                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+                <div class="bg-white rounded-xl p-6 shadow-lg w-full max-w-md relative">
+                    <h2 class="text-xl font-bold mb-4 text-center">Pengaturan</h2>
+                    <label class="block mb-1 font-semibold">Kontras Threshold: <span
+                            id="kontrasValPopup">20</span></label>
+                    <input type="number" id="kontrasSliderPopup" min="1" max="50" step="1" value="20"
+                        class="settings-input border border-gray-400 rounded px-2 py-1 focus:outline-none focus:border-blue-500 mb-3" />
+
+                    <label class="block mb-1 font-semibold">Gelap Threshold: <span id="gelapValPopup">200</span></label>
+                    <input type="number" id="gelapSliderPopup" min="10" max="255" step="1" value="200"
+                        class="settings-input border border-gray-400 rounded px-2 py-1 focus:outline-none focus:border-blue-500 mb-3" />
+
+                    <label class="block mb-1 font-semibold">Terang Threshold: <span
+                            id="teragValPopup">200</span></label>
+                    <input type="number" id="terangSliderPopup" min="10" max="255" step="1" value="200"
+                        class="settings-input border border-gray-400 rounded px-2 py-1 focus:outline-none focus:border-blue-500 mb-3" />
+
+                    <label class="block mb-1 font-semibold">Min Area: <span id="minAreaValPopup">1</span></label>
+                    <input type="number" id="minAreaSliderPopup" min="0" max="500" step="1" value="2"
+                        class="settings-input border border-gray-400 rounded px-2 py-1 focus:outline-none focus:border-blue-500 mb-3" />
+
+                    <label class="block mb-1 font-semibold">Max Area: <span id="maxAreaValPopup">30</span></label>
+                    <input type="number" id="maxAreaSliderPopup" min="5" max="100" step="1" value="30"
+                        class="settings-input border border-gray-400 rounded px-2 py-1 focus:outline-none focus:border-blue-500 mb-3" />
+
+                    <label class="block mb-1 font-semibold">Batas Titik Kotor:
+                        <span id="batasKotorValPopup">5</span>
+                    </label>
+                    <input type="number" id="batasKotorSliderPopup" min="0" max="100" step="1" value="5"
+                        class="settings-input border border-gray-400 rounded px-2 py-1 focus:outline-none focus:border-blue-500 mb-3" />
+
+
+                    <button onclick="bukaModalUbahKodeUser()"
+                        class="w-full px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+                        Ubah Password
+                    </button>
+                    <div class="mt-6 text-right">
+                        <button onclick="tutupModalSetting()"
+                            class="px-4 py-2 bg-gray-400 text-white rounded hover:bg-blue-500">
+                            Tutup
+                        </button>
+                        <button onclick="simpanPengaturan()"
+                            class="px-4 py-2 bg-blue-400 text-white rounded hover:bg-gray-500">
+                            Simpan
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Modal Ubah Kode User -->
+            <div id="modalUbahKodeUser"
+                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+                <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
+                    <h2 class="text-xl font-bold text-center mb-4">Ubah Password User</h2>
+
+                    <div class="mb-3">
+                        <label class="block font-medium mb-1">Password Lama:</label>
+                        <input type="password" id="kodeLama" class="w-full border p-2 rounded" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="block font-medium mb-1">Password Baru:</label>
+                        <input type="password" id="kodeBaru" class="w-full border p-2 rounded" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="block font-medium mb-1">Ulangi Password Baru:</label>
+                        <input type="password" id="konfirmasiKodeBaru" class="w-full border p-2 rounded" />
+                    </div>
+
+                    <div class="flex justify-end gap-4 mt-6">
+                        <button onclick="simpanKodeUserBaru()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Simpan</button>
+                        <button onclick="tutupModalUbahKodeUser()"
+                            class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">Batal</button>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Loading popup -->
+            <div id="loadingPopup" style="display:none;">
+                <div class="spinner"></div>
+                Mohon tunggu...
+            </div>
+
+            <script src="js/alert.js"></script>
+            <script src="js/setting.js"></script>
+            <script src="js/loadModel.js"></script>
+            <script src="js/deteksi_sarang.js"></script>
+
+
+            <script>
+                const codes = ['KN', 'KR', 'BW'];
+                const buffers = {};
+                codes.forEach(code => {
+                    buffers[code] = {
+                        img: document.getElementById('img' + code),
+                        canvas: document.createElement('canvas'),
+                        ctx: null,
+                        detectCanvas: document.getElementById('detect' + code),
+                        detectCtx: document.getElementById('detect' + code).getContext('2d'),
+                        countEl: document.getElementById('count' + code)
+                    };
+                    buffers[code].ctx = buffers[code].canvas.getContext('2d');
+                });
+
+                function drawRotatedImage(buf, code, imgObj) {
+                    buf.canvas.width = imgObj.width;
+                    buf.canvas.height = imgObj.height;
+                    buf.ctx.save();
+                    buf.ctx.clearRect(0, 0, buf.canvas.width, buf.canvas.height);
+                    buf.ctx.translate(buf.canvas.width / 2, buf.canvas.height / 2);
+                    buf.ctx.rotate(Math.PI); // 180°
+                    // if (code !== 'KR') buf.ctx.scale(-1, 1);
+
+                    // if (code === 'BW') {
+                    buf.ctx.scale(-1, 1); // mirror horizontal
+                    // }
+
+                    buf.ctx.drawImage(imgObj, -imgObj.width / 2, -imgObj.height / 2);
+                    buf.ctx.restore();
+                }
+
+                function enhanceContrast(imageData, factor = 1.2) {
+
+                    if (!imageData || !imageData.data) return imageData;
+
+                    const data = imageData.data;
+                    let min = 255, max = 0;
+
+                    // Cari min & max nilai grayscale
+                    for (let i = 0; i < data.length; i += 4) {
+                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                        if (gray < min) min = gray;
+                        if (gray > max) max = gray;
+                    }
+
+                    const scale = 255 / (max - min + 0.01); // +0.01 supaya gak div 0
+
+                    // Terapkan contrast stretch
+                    for (let i = 0; i < data.length; i += 4) {
+                        for (let c = 0; c < 3; c++) {
+                            let val = (data[i + c] - min) * scale * factor;
+                            data[i + c] = Math.max(0, Math.min(255, val));
+                        }
+                        // alpha tetap
+                    }
+
+                    return imageData;
+                }
+
+                function enhanceDarkContrast(imageData, factor = 1.4, gamma = 0.9) {
+                    // factor = kekuatan kontras
+                    // gamma < 1 → area gelap lebih ditekan, area terang tetap
+                    if (!imageData || !imageData.data) return imageData;
+
+                    const data = imageData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        for (let c = 0; c < 3; c++) {
+                            // Normalisasi 0-1
+                            let val = data[i + c] / 255;
+                            // Gamma correction untuk gelap
+                            val = Math.pow(val, gamma);
+                            // Tingkatkan kontras gelap
+                            val = Math.min(1, val * factor);
+                            // Kembali ke 0-255
+                            data[i + c] = Math.max(0, Math.min(255, val * 255));
+                        }
+                        // alpha tetap
+                    }
+                    return imageData;
+                }
+
+
+                function enhanceContrastCLAHE(imageData, kernel_size = 8, contrast_faktor = 2) {
+                    if (!imageData || !imageData.data) return imageData;
+
+                    // Convert ImageData -> cv.Mat
+                    let src = cv.matFromImageData(imageData);
+
+                    // Pisah channel (RGBA)
+                    let rgba = new cv.MatVector();
+                    cv.split(src, rgba);
+
+                    // Buat CLAHE
+                    let clahe = new cv.CLAHE(contrast_faktor, new cv.Size(kernel_size, kernel_size));
+
+                    // Terapkan CLAHE ke R, G, B saja (abaikan alpha)
+                    let r = new cv.Mat();
+                    let g = new cv.Mat();
+                    let b = new cv.Mat();
+
+                    clahe.apply(rgba.get(0), r);  // R
+                    clahe.apply(rgba.get(1), g);  // G
+                    clahe.apply(rgba.get(2), b);  // B
+
+                    // Gabung kembali (dengan channel A tetap)
+                    let result = new cv.Mat();
+                    let merged = new cv.MatVector();
+                    merged.push_back(r);
+                    merged.push_back(g);
+                    merged.push_back(b);
+                    merged.push_back(rgba.get(3)); // Alpha tetap
+
+                    cv.merge(merged, result);
+
+                    // Convert balik ke ImageData
+                    let outImageData = new ImageData(
+                        new Uint8ClampedArray(result.data),
+                        result.cols,
+                        result.rows
+                    );
+
+                    // Cleanup
+                    src.delete(); rgba.delete();
+                    r.delete(); g.delete(); b.delete();
+                    merged.delete(); result.delete(); clahe.delete();
+
+                    return outImageData;
+                }
+
+                function createWhiteImage(width, height) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, width, height);
+                    return canvas.toDataURL('image/png');
+                }
+
+                window.electronAPI.onFrame(async ({ b64, kodeAlat }) => {
+                    if (!buffers[kodeAlat]) return;
+                    const buf = buffers[kodeAlat];
+                    const imgObj = new Image();
+                    imgObj.src = 'data:image/jpeg;base64,' + b64;
+                    await imgObj.decode();
+                    drawRotatedImage(buf, kodeAlat, imgObj);
+                    let frame = buf.ctx.getImageData(0, 0, buf.canvas.width, buf.canvas.height);
+                    // frame = enhanceContrast(frame);
+                    frame = enhanceContrastCLAHE(frame);
+                    frame = enhanceDarkContrast(frame);
+                    console.log("kodeAlat", kodeAlat);
+
+                    if (kodeAlat == "BW") {
+                        frame = enhanceContrastCLAHE(frame, kernel_size = 32, contrast_faktor = 1.3);
+                    } else {
+                        frame = enhanceContrastCLAHE(frame, kernel_size = 32, contrast_faktor = 1.2);
+                    }
+
+                    buf.ctx.putImageData(frame, 0, 0);
+                    buf.img.src = buf.canvas.toDataURL();
+
+                    if (cv) {
+                        const t0 = performance.now(); // mulai hitung
+                        await detectKotoran(buf, kodeAlat);
+                        const t1 = performance.now(); // selesai
+                        console.log(`Lama deteksi kotoran ${kodeAlat}: ${(t1 - t0).toFixed(2)} ms`);
+                    }
+                });
+
+
+                window.electronAPI.onStatusFokus((status) => {
+                    // Pisahkan key dan value berdasarkan ":"
+                    const [posisi, pesan] = status.split(':').map(s => s.trim());
+
+                    // Pilih elemen span berdasarkan posisi
+                    let spanEl = null;
+                    switch (posisi.toLowerCase()) {
+                        case 'kanan':
+                            spanEl = document.querySelector("#status_fokus_kamera_kanan span");
+                            break;
+                        case 'kiri':
+                            spanEl = document.querySelector("#status_fokus_kamera_kiri span");
+                            break;
+                        case 'bawah':
+                            spanEl = document.querySelector("#status_fokus_kamera_bawah span");
+                            break;
+                    }
+
+                    // Update teks
+                    if (spanEl) {
+                        spanEl.textContent = `${posisi}: ${pesan}`;
+                    }
+                });
+
+
+                let status_deteksi = false;
+
+                document.addEventListener("keydown", async (e) => {
+
+
+                    if (e.code === "Enter") {
+
+                        if (status_deteksi == false) {
+                            console.log("⏳ Enter ditekan → ambil semua gambar...");
+                            status_deteksi = true;
+                            showLoading()
+                            const whiteImage = createWhiteImage(480, 360);
+
+                            // set gambar putih ke semua img
+                            document.getElementById('imgKN').src = whiteImage;
+                            document.getElementById('imgKR').src = whiteImage;
+                            document.getElementById('imgBW').src = whiteImage;
+
+                            // bersihkan canvas detect juga jadi putih
+                            ['detectKN', 'detectKR', 'detectBW'].forEach(id => {
+                                const c = document.getElementById(id);
+                                const ctx = c.getContext('2d');
+                                ctx.fillStyle = 'white';
+                                ctx.fillRect(0, 0, c.width, c.height);
+                            });
+
+                            // set count kotoran jadi 0
+                            document.getElementById('countKN').innerText = 'Kotoran: 0';
+                            document.getElementById('countKR').innerText = 'Kotoran: 0';
+                            document.getElementById('countBW').innerText = 'Kotoran: 0';
+
+                            try {
+                                // Kamera kanan
+                                await window.electronAPI.requestImage("gambarKameraKanan");
+                                await new Promise(resolve => setTimeout(resolve, 2500));
+
+                                // Kamera kiri
+                                await window.electronAPI.requestImage("gambarKameraKiri");
+                                await new Promise(resolve => setTimeout(resolve, 2500));
+
+                                // Kamera bawah
+                                await window.electronAPI.requestImage("gambarKameraBawah");
+                                await new Promise(resolve => setTimeout(resolve, 2500));
+
+                                await updateKotoran();
+                                console.log("✅ Semua gambar berhasil diambil");
+                            } catch (err) {
+                                console.error("❌ Gagal ambil gambar:", err);
+                            } finally {
+                                hideLoading();
+                            }
+                            status_deteksi = false;
+                        }
+                    }
+                });
+
+                function customMinPoolingStride(srcGray, ksize = 3) {
+                    // srcGray: CV_8UC1
+                    const rows = srcGray.rows, cols = srcGray.cols;
+                    const dst = new cv.Mat(rows, cols, cv.CV_8UC1);
+
+                    // const stride = Math.max(1, ksize - 1);
+                    const stride = 1;
+                    const half = Math.floor(ksize / 2);
+                    const srcData = srcGray.data;
+                    const dstData = dst.data;
+
+                    for (let y = 0; y < rows; y += stride) {
+                        for (let x = 0; x < cols; x += stride) {
+                            let vals = [];
+                            let coords = [];
+
+                            // ambil semua nilai di sekitar (x,y)
+                            for (let ky = -half; ky <= half; ky++) {
+                                for (let kx = -half; kx <= half; kx++) {
+                                    let yy = y + ky, xx = x + kx;
+                                    if (yy >= 0 && yy < rows && xx >= 0 && xx < cols) {
+                                        let v = srcData[yy * cols + xx];
+                                        vals.push(v);
+                                        coords.push({ y: yy, x: xx });
+                                    }
+                                }
+                            }
+
+                            if (vals.length === 0) continue;
+
+                            // cari nilai minimum
+                            let minVal = Math.min(...vals);
+
+                            // buang nilai minimum sebelum hitung rata-rata
+                            let valsWithoutMin = vals.filter(v => v !== minVal);
+                            let avgVal = 0;
+                            if (valsWithoutMin.length > 0) {
+                                avgVal = valsWithoutMin.reduce((a, b) => a + b, 0) / valsWithoutMin.length;
+                            } else {
+                                avgVal = minVal; // fallback kalau semua nilai sama
+                            }
+
+                            let delta = avgVal - minVal;
+                            // kalau kamu mau tetap turunkan sedikit nilai minimum
+                            // biar kelihatan lebih kontras, aktifkan baris bawah:
+                            // let corrected = Math.max(0, minVal - delta);
+                            let corrected = minVal;
+
+                            // tulis hasil
+                            for (let i = 0; i < vals.length; i++) {
+                                const { y: yy, x: xx } = coords[i];
+                                const v = vals[i];
+                                const out = (v === minVal) ? corrected : avgVal;
+                                dstData[yy * cols + xx] = Math.round(out);
+                            }
+                        }
+                    }
+
+                    return dst;
+                }
+
+                function darkExpand(srcGray, ksize = 3) {
+                    // srcGray: CV_8UC1 (grayscale)
+                    const rows = srcGray.rows, cols = srcGray.cols;
+                    const dst = new cv.Mat(rows, cols, cv.CV_8UC1);
+
+                    const half = Math.floor(ksize / 2);
+                    const srcData = srcGray.data;
+                    const dstData = dst.data;
+
+                    for (let y = 0; y < rows; y++) {
+                        for (let x = 0; x < cols; x++) {
+                            let minVal = 255;
+
+                            // cari nilai minimum di sekitar (x, y)
+                            for (let ky = -half; ky <= half; ky++) {
+                                for (let kx = -half; kx <= half; kx++) {
+                                    const yy = y + ky, xx = x + kx;
+                                    if (yy >= 0 && yy < rows && xx >= 0 && xx < cols) {
+                                        const v = srcData[yy * cols + xx];
+                                        if (v < minVal) minVal = v;
+                                    }
+                                }
+                            }
+
+                            // tulis nilai minimum (semakin besar ksize → area gelap makin melebar)
+                            dstData[y * cols + x] = minVal;
+                        }
+                    }
+
+                    return dst;
+                }
+
+
+                function customMinPoolingReplace3Lowest(srcGray, ksize = 3) {
+                    const rows = srcGray.rows, cols = srcGray.cols;
+                    const dst = new cv.Mat(rows, cols, cv.CV_8UC1);
+                    const stride = ksize;
+                    const half = Math.floor(ksize / 2);
+                    const srcData = srcGray.data;
+                    const dstData = dst.data;
+
+                    for (let y = 0; y < rows; y += stride) {
+                        for (let x = 0; x < cols; x += stride) {
+                            let vals = [];
+                            let coords = [];
+
+                            for (let ky = -half; ky <= half; ky++) {
+                                for (let kx = -half; kx <= half; kx++) {
+                                    let yy = y + ky, xx = x + kx;
+                                    if (yy >= 0 && yy < rows && xx >= 0 && xx < cols) {
+                                        vals.push(srcData[yy * cols + xx]);
+                                        coords.push({ y: yy, x: xx });
+                                    }
+                                }
+                            }
+
+                            if (vals.length < 4) continue; // butuh minimal 4 titik (3 terendah + 1 lainnya)
+
+                            // Urutkan dari kecil ke besar tapi tetap simpan indeks aslinya
+                            const indexed = vals.map((v, i) => ({ v, i }));
+                            indexed.sort((a, b) => a.v - b.v);
+
+                            // Ambil 3 nilai terendah dan sisanya
+                            const lowest3 = indexed.slice(0, 3);
+                            const others = indexed.slice(3);
+
+                            // Hitung rata-rata dari selain 3 nilai terendah
+                            const avgOthers = others.reduce((sum, obj) => sum + obj.v, 0) / others.length;
+
+                            // Salin semua nilai awal ke hasil
+                            for (let i = 0; i < vals.length; i++) {
+                                const { y: yy, x: xx } = coords[i];
+                                dstData[yy * cols + xx] = vals[i];
+                            }
+
+                            // Ganti 3 nilai terendah dengan rata-rata others
+                            for (const obj of lowest3) {
+                                const { y: yy, x: xx } = coords[obj.i];
+                                dstData[yy * cols + xx] = Math.round(avgOthers);
+                            }
+                        }
+                    }
+
+                    return dst;
+                }
+
+
+                async function detectKotoran(buf, code) {
+                    try {
+                        console.log("🔍 Mulai deteksi kotoran...");
+                        if (!cv || !buf.canvas) return;
+
+                        // === PARAMETER DASAR ===
+                        const skipLargeShadowArea = 5000; // abaikan bayangan besar
+
+                        // === Ambil nilai dari UI (kalau ada) atau fallback ke setting JSON ===
+                        let kontrasVal =
+                            parseInt(document.getElementById("kontrasSliderPopup")?.value) ||
+                            kontrasThreshold;
+                        let gelapVal =
+                            parseInt(document.getElementById("gelapSliderPopup")?.value) ||
+                            gelapThreshold;
+                        let terangVal =
+                            parseInt(document.getElementById("terangSliderPopup")?.value) || 150;
+                        let min_area =
+                            parseFloat(document.getElementById("minAreaSliderPopup")?.value) ||
+                            minArea;
+                        let max_area =
+                            parseFloat(document.getElementById("maxAreaSliderPopup")?.value) ||
+                            maxArea;
+
+                        // Update label nilai di UI (agar sinkron)
+                        if (document.getElementById("kontrasValPopup"))
+                            document.getElementById("kontrasValPopup").innerText = kontrasVal;
+                        if (document.getElementById("gelapValPopup"))
+                            document.getElementById("gelapValPopup").innerText = gelapVal;
+                        if (document.getElementById("terangValPopup"))
+                            document.getElementById("terangValPopup").innerText = terangVal;
+
+                        // === Ambil gambar dari buffer ===
+                        const img_base64 = buf.img.src;
+                        const [hasil_base64] = await runInference_deteksi(img_base64, code);
+
+                        const imgObj = new Image();
+                        imgObj.src = hasil_base64;
+                        await imgObj.decode();
+
+                        buf.detectCtx.clearRect(0, 0, buf.detectCanvas.width, buf.detectCanvas.height);
+                        buf.detectCtx.drawImage(imgObj, 0, 0, buf.detectCanvas.width, buf.detectCanvas.height);
+
+                        // === convert ke cv.Mat ===
+                        let tmpCanvas = document.createElement('canvas');
+                        tmpCanvas.width = imgObj.width;
+                        tmpCanvas.height = imgObj.height;
+                        let tmpCtx = tmpCanvas.getContext('2d');
+                        tmpCtx.drawImage(imgObj, 0, 0);
+                        let src = cv.matFromImageData(tmpCtx.getImageData(0, 0, tmpCanvas.width, tmpCanvas.height));
+
+                        let dst = src.clone();
+
+                        // === (1) Grayscale ===
+                        let gray = new cv.Mat();
+                        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+                        // === (12) Custom pooling opsional ===
+                        // gray = customMinPoolingReplace3Lowest(gray, 7);
+                        gray = customMinPoolingStride(gray, 3);
+
+                        gray = darkExpand(gray, 2);
+                        gray = customMinPoolingStride(gray, 3);
+                        gray = customMinPoolingStride(gray, 3);
+
+                        // === (2) Threshold global (OTSU) untuk jadi hitam putih ===
+                        let binary = new cv.Mat();
+                        cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+                        // cv.threshold(gray, binary, 150, 255, cv.THRESH_BINARY);
+
+                        // === (3) CLAHE untuk tingkatkan kontras ===
+                        let clahe = new cv.CLAHE(1.1, new cv.Size(16, 16));
+                        let enhanced = new cv.Mat();
+                        clahe.apply(gray, enhanced);
+                        clahe.delete();
+
+                        let smooth = new cv.Mat();
+                        // Blur ringan agar noise tinggi tidak ikut terdeteksi
+                        cv.GaussianBlur(enhanced, smooth, new cv.Size(3, 3), 0);
+
+                        let diff = new cv.Mat();
+                        // Ambil selisih antara gambar asli dan hasil smooth
+                        cv.absdiff(enhanced, smooth, diff);
+
+                        // --- Langkah 1: Threshold global (deteksi area kontras tinggi) ---
+                        let maskGlobal = new cv.Mat();
+                        let minMax = cv.minMaxLoc(diff);
+                        console.log("kontrasThreshold (dari JSON):", kontrasThreshold);
+                        console.log("📊 diff min/max:", minMax.minVal, minMax.maxVal);
+
+                        let maskKontras = new cv.Mat();
+                        // 🔧 pakai kontrasVal (bisa dari slider atau JSON)
+                        cv.threshold(diff, maskKontras, kontrasVal, 255, cv.THRESH_BINARY);
+
+                        // --- Langkah 2: Threshold adaptif (menyesuaikan kondisi lokal) ---
+                        let maskAdaptive = new cv.Mat();
+                        // 11 = ukuran blok, 2 = konstanta pengurang rata-rata
+                        // cv.adaptiveThreshold(diff, maskAdaptive, 255,
+                        //     cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 11, 2);
+
+                        // --- Langkah 3: Gabungkan keduanya ---
+                        // Area yang lolos salah satu metode dianggap kotor
+                        // let maskKontras = new cv.Mat();
+                        // cv.bitwise_and(maskGlobal, maskAdaptive, maskKontras);
+
+                        // dst = maskKontras.clone();
+
+                        // --- (Opsional) Bersihkan noise kecil ---
+                        let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+                        cv.morphologyEx(maskKontras, maskKontras, cv.MORPH_OPEN, kernel);
+                        cv.morphologyEx(maskKontras, maskKontras, cv.MORPH_CLOSE, kernel);
+
+                        // --- (Opsional) Perbesar titik kotoran kecil biar lebih jelas ---
+                        cv.dilate(maskKontras, maskKontras, kernel);
+
+                        //                         smooth.delete();
+                        //                         diff.delete();
+                        //                         smooth.delete();
+                        // maskGlobal.delete();
+                        // maskAdaptive.delete();
+                        // kernel.delete();
+
+                        // === (5) Mask area gelap ===
+                        let maskGelap = new cv.Mat();
+                        // 🔧 pakai gelapVal (bisa dari slider atau JSON)
+                        cv.threshold(enhanced, maskGelap, gelapVal, 255, cv.THRESH_BINARY_INV);
+
+                        // === (6) Mask area terlalu terang ===
+                        let maskTerang = new cv.Mat();
+                        cv.threshold(enhanced, maskTerang, terangVal, 255, cv.THRESH_BINARY);
+
+                        // === (7) Gabungkan mask kontras + gelap ===
+                        let combinedMask = new cv.Mat();
+                        cv.bitwise_or(maskKontras, maskGelap, combinedMask);
+
+                        // === (8) Hapus area terlalu terang ===
+                        let temp = new cv.Mat();
+                        cv.bitwise_not(maskTerang, temp);
+                        cv.bitwise_and(combinedMask, temp, combinedMask);
+                        temp.delete();
+
+                        // === (9) Filter tambahan ===
+                        let maskGelapKandidat = new cv.Mat();
+                        cv.threshold(enhanced, maskGelapKandidat, 200, 255, cv.THRESH_BINARY_INV);
+                        cv.bitwise_and(combinedMask, maskGelapKandidat, combinedMask);
+                        maskGelapKandidat.delete();
+
+                        // dst = combinedMask.clone();
+
+                        // === (10) Bersihkan noise kecil ===
+                        // let kernel = cv.Mat.ones(2, 2, cv.CV_8U);
+                        // cv.morphologyEx(combinedMask, combinedMask, cv.MORPH_OPEN, kernel);
+                        // kernel.delete();
+
+                        // === (11) Tanpa ROI mask ===
+                        let finalMask = combinedMask.clone();
+
+                        // dst = combinedMask.clone();
+
+                        // === (13) Deteksi kontur kotoran ===
+                        let contours = new cv.MatVector();
+                        let hierarchy = new cv.Mat();
+                        cv.findContours(finalMask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+                        let count = 0;
+
+                        // === (14) Warnai area kotoran di gambar asli ===
+                        for (let i = 0; i < contours.size(); i++) {
+                            let cnt = contours.get(i);
+                            let area = cv.contourArea(cnt);
+                            if (area >= min_area && area <= max_area && area < skipLargeShadowArea) {
+                                let color = new cv.Scalar(255, 255, 255, 255); // putih di area kotoran
+                                // cv.drawContours(dst, contours, i, color, -1); // isi area putih
+                                // cv.drawContours(dst, contours, i, [255, 0, 0, 255], 1); // garis tepi biru
+                                let circle = cv.minEnclosingCircle(cnt);
+                                cv.circle(dst, circle.center, circle.radius, [255, 0, 0, 255], 2);
+                                count++;
+                            }
+                            cnt.delete();
+                        }
+
+                        // === (15) Tampilkan hasil ===
+                        cv.imshow(buf.detectCanvas, dst);
+                        buf.countEl.innerText = "Kotoran: " + count;
+
+                        // === (16) Cleanup ===
+                        src.delete(); gray.delete(); enhanced.delete();
+                        maskKontras.delete(); maskGelap.delete();
+                        maskTerang.delete(); combinedMask.delete();
+                        binary.delete(); finalMask.delete();
+                        contours.delete(); hierarchy.delete(); dst.delete();
+
+                        console.log("✅ Deteksi selesai. Ditemukan:", count);
+
+
+                    } catch (err) {
+                        console.error("❌ detectKotoran error:", err);
+                        alert("Terjadi error saat deteksi: " + err.message);
+                    }
+                }
+
+
+
+                // Daftar ID input di modal
+                ['kontrasSliderPopup', 'gelapSliderPopup', 'terangSliderPopup', 'minAreaSliderPopup', 'maxAreaSliderPopup'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.addEventListener('input', e => {
+                            const val = parseInt(e.target.value) || 0;
+
+                            // Update variabel global (setting.js)
+                            if (id === 'kontrasSliderPopup') kontrasThreshold = val;
+                            if (id === 'gelapSliderPopup') gelapThreshold = val;
+                            if (id === 'terangSliderPopup') gelapThreshold = val;
+                            if (id === 'minAreaSliderPopup') minArea = val;
+                            if (id === 'maxAreaSliderPopup') maxArea = val;
+
+                            // Update label di modal (contoh: kontrasSliderPopup -> kontrasValPopup)
+                            const labelId = id.replace('SliderPopup', 'ValPopup');
+                            const label = document.getElementById(labelId);
+                            if (label) label.innerText = val;
+
+                            // Jalankan ulang deteksi untuk semua kamera
+                            // codes.forEach(c => detectKotoran(buffers[c], c));
+                        });
+                    }
+                });
+
+
+                async function updateKotoran() {
+                    // update teks
+                    const bwText = document.getElementById('countBW').textContent;
+                    const knText = document.getElementById('countKN').textContent;
+                    const krText = document.getElementById('countKR').textContent;
+
+                    // Ambil angka
+                    const bw = parseInt(bwText.replace(/\D/g, ''), 10) || 0;
+                    const kn = parseInt(knText.replace(/\D/g, ''), 10) || 0;
+                    const kr = parseInt(krText.replace(/\D/g, ''), 10) || 0;
+
+                    const jumlah = bw + kn + kr;
+                    console.log("Kotoran:", jumlah);
+                    document.getElementById('jumlah_titik').textContent = `${jumlah}`;
+
+                    // Ambil batas titik kotor dari slider atau setting
+                    const batas =
+                        parseFloat(document.getElementById("batasKotorSliderPopup")?.value) ||
+                        batasKotor;
+
+                    console.log("📏 Batas titik kotor dari setting:", batas);
+
+                    // === 🔍 Cek apakah salah satu gambar putih ===
+                    const imgIds = ['imgKN', 'imgKR', 'imgBW'];
+                    let isAnyWhite = false;
+
+                    for (const id of imgIds) {
+                        const img = document.getElementById(id);
+
+                        if (!img.complete || img.naturalWidth === 0) {
+                            console.warn(`⚠️ ${id} belum selesai dimuat atau kosong`);
+                            isAnyWhite = true;
+                            break;
+                        }
+
+                        // Buat canvas sementara
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                        ctx.drawImage(img, 0, 0);
+
+                        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        let whitePixels = 0;
+                        const totalPixels = canvas.width * canvas.height;
+
+                        for (let i = 0; i < data.length; i += 4) {
+                            const r = data[i], g = data[i + 1], b = data[i + 2];
+                            if (r > 240 && g > 240 && b > 240) whitePixels++;
+                        }
+
+                        const ratio = whitePixels / totalPixels;
+                        console.log(`📷 ${id} white ratio: ${(ratio * 100).toFixed(2)}%`);
+
+                        if (ratio > 0.9) {
+                            console.warn(`🚫 ${id} terlalu putih → deteksi gagal`);
+                            isAnyWhite = true;
+                            break;
+                        }
+                    }
+
+                    // Jika ada yang putih → hentikan dan beri peringatan
+                    if (isAnyWhite) {
+                       showAlert("❌ Deteksi gagal: salah satu gambar masih putih.\nSilakan tekan Enter lagi untuk mengulang deteksi.","error");
+                        hideLoading();
+                        status_deteksi = false;
+                        return; // berhenti di sini, tidak lanjut ke penilaian
+                    }
+
+                    // === Lanjut penilaian normal ===
+                    const statusImg = document.getElementById('statusIMG');
+                    const statusLabel = document.getElementById('status-kebersihan');
+
+                    if (jumlah >= 0 && jumlah < batas / 2) {
+                        statusImg.src = 'icons/sangat_bersih.jpg';
+                        statusLabel.textContent = '✅ DITERIMA — Wah.. Sangat Bersih! Kamu Hebat. Pertahankan ya';
+                        statusLabel.style.color = 'green';
+                    } else if (jumlah >= batas / 2 && jumlah < batas) {
+                        statusImg.src = 'icons/bersih.jpg';
+                        statusLabel.textContent = '✅ DITERIMA — Sudah Bersih, Kerja Bagus!. Lanjutkan ya';
+                        statusLabel.style.color = 'limegreen';
+                    } else if (jumlah >= batas + 1 && jumlah < batas * 1.5) {
+                        statusImg.src = 'icons/kotor_dikit.jpg';
+                        statusLabel.textContent = '⚠️ DITOLAK — Masih Kotor Sedikit, Yukkk bersihin dikit lagi.';
+                        statusLabel.style.color = 'orange';
+                    } else if (jumlah >= batas * 1.5 && jumlah < batas * 2) {
+                        statusImg.src = 'icons/kotor.jpg';
+                        statusLabel.textContent = '❌ DITOLAK — Masih Kotor, Segera Dibersihkan ya. Semangat!';
+                        statusLabel.style.color = 'orangered';
+                    } else {
+                        statusImg.src = 'icons/sangat_kotor.jpg';
+                        statusLabel.textContent = '❌ DITOLAK — Wahh.. Masih Kotor Sekali, Yuk bersihin lagi. Semangat ya.....';
+                        statusLabel.style.color = 'red';
+                    }
+                }
+
+
+
+                async function Fokuskan(lokasi_kamera) {
+                    let id_kamera_label = null;
+                    let posisi_kamera = "";
+                    if (lokasi_kamera == "fokusKameraBawah") {
+                        id_kamera_label = document.querySelector("#status_fokus_kamera_bawah span");
+                        posisi_kamera = "Bawah";
+                    }
+
+                    if (lokasi_kamera == "fokusKameraKanan") {
+                        id_kamera_label = document.querySelector("#status_fokus_kamera_kanan span");
+                        posisi_kamera = "kanan";
+                    }
+
+                    if (lokasi_kamera == "fokusKameraKiri") {
+                        id_kamera_label = document.querySelector("#status_fokus_kamera_kiri span");
+                        posisi_kamera = "Kiri";
+                    }
+
+                    id_kamera_label.textContent = `${posisi_kamera}: Memfokuskan`;
+                    await window.electronAPI.FokuskanKamera(lokasi_kamera);
+                }
+
+
+            </script>
+
+</body>
+
+</html>

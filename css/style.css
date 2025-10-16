@@ -1,0 +1,140 @@
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Style untuk Popup */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.popup-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.popup-content h2 {
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 10px 20px;
+  margin: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+.active-main {
+  background-color: #047857;
+  /* hijau gelap */
+  color: white;
+}
+
+.active-main {
+  background: linear-gradient(to right, #fffaf0, #fcebd1);
+  /* kapas → krem terang */
+  color: black;
+}
+
+.active-eco {
+  background: linear-gradient(to right, #fcebd1, #f5deb3);
+  /* krem terang → krem sedang */
+  color: black;
+}
+
+.active-sortir {
+  background: linear-gradient(to right, #f5deb3, #e5c49d);
+  /* krem sedang → krem gelap */
+  color: black;
+}
+
+.hover-main:hover {
+  background: linear-gradient(to right, #fffaf0, #fcebd1);
+  /* kapas → krem terang */
+  color: black;
+}
+
+.hover-eco:hover {
+  background: linear-gradient(to right, #fcebd1, #f5deb3);
+  /* krem terang → krem sedang */
+  color: black;
+}
+
+.hover-sortir:hover {
+  background: linear-gradient(to right, #f5deb3, #e5c49d);
+  /* krem sedang → krem gelap */
+  color: black;
+}
+
+#modalDaftarGrade.hidden,
+#modalWarnaSerat.hidden,
+#gradeModal.hidden {
+  display: none !important;
+}
+
+.alert-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.alert-box {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  width: 90%;
+  max-width: 400px;
+}
+
+.alert-box p {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+}
+
+.alert-box button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.alert-box button:hover {
+  background-color: #0056b3;
+}
+
+.hidden {
+  display: none;
+}

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32 Stream</title>
+    <style>
+        .espImage {
+            width: 640px;
+            height: 480px;
+            transform: rotate(180deg) scaleX(-1);
+            /* default untuk KN & BW */
+            margin: 5px;
+            border: 1px solid #aaa;
+        }
+
+        #imgKR {
+            transform: rotate(180deg);
+            /* KR hanya diputar 180°, tanpa mirror */
+        }
+
+        #container {
+            display: flex;
+        }
+    </style>
+
+</head>
+
+<body>
+    <h1>ESP32 Camera Stream</h1>
+    <div id="container">
+        <div>
+            <h3>KN</h3>
+            <img id="imgKN" class="espImage">
+            <canvas id="canvasKN" width="320" height="240" style="display:none;"></canvas>
+        </div>
+        <div>
+            <h3>KR</h3>
+            <img id="imgKR" class="espImage">
+            <canvas id="canvasKR" width="320" height="240" style="display:none;"></canvas>
+        </div>
+        <div>
+            <h3>BW</h3>
+            <img id="imgBW" class="espImage">
+            <canvas id="canvasBW" width="320" height="240" style="display:none;"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const codes = ['KN', 'KR', 'BW'];
+
+        // Siapkan objek canvas & context untuk double buffer
+        const buffers = {};
+        codes.forEach(code => {
+            buffers[code] = {
+                img: document.getElementById('img' + code),
+                canvas: document.getElementById('canvas' + code),
+                ctx: document.getElementById('canvas' + code).getContext('2d')
+            };
+        });
+
+        function enhanceContrast(imageData, factor = 1.2) {
+            const data = imageData.data;
+            const avgGray = data.reduce((sum, v, i) => i % 4 !== 3 ? sum + v : sum, 0) / (data.length / 4);
+            for (let i = 0; i < data.length; i += 4) {
+                for (let c = 0; c < 3; c++) {
+                    let val = avgGray + factor * (data[i + c] - avgGray);
+                    data[i + c] = Math.max(0, Math.min(255, val));
+                }
+            }
+            return imageData;
+        }
+
+        async function frameLoop() {
+            while (true) {
+                for (const code of codes) {
+                    try {
+                        await window.electronAPI.requestImage(code);
+                    } catch (err) {
+                        console.error(`[RENDERER] Request error for ${code}:`, err);
+                    }
+                    // Delay 0.5 detik antar request
+                    await new Promise(resolve => setTimeout(resolve, 400));
+                }
+            }
+        }
+
+        // Terima frame
+        window.electronAPI.onFrame(async ({ b64, kodeAlat }) => {
+            if (!buffers[kodeAlat]) return; // abaikan jika kodeAlat tidak dikenal
+
+            const { img, canvas, ctx } = buffers[kodeAlat];
+
+            try {
+                const imgObj = new Image();
+                imgObj.src = 'data:image/jpeg;base64,' + b64;
+                await imgObj.decode();
+
+                // Render di back buffer
+                ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
+
+                // Enhance contrast
+                let frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                frame = enhanceContrast(frame, 1.05);
+                ctx.putImageData(frame, 0, 0);
+
+                // Update <img>
+                img.src = canvas.toDataURL();
+            } catch (e) {
+                console.warn(`[RENDERER] Invalid/corrupt frame for ${kodeAlat} skipped`);
+            }
+        });
+
+        frameLoop();
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "resikono",
+  "version": "1.0.0",
+  "description": "Aplikasi verifikasi kebersihan berbasis Electron",
+  "author": "Nama Kamu <email@example.com>",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "build": {
+    "appId": "com.waleta.resikono",
+    "productName": "RESIKONO",
+    "win": {
+      "icon": "build/PILAHO.ico",
+      "target": [
+        "nsis",
+        "portable",
+        "zip"
+      ]
+    }
+  },
+  "dependencies": {
+    "serialport": "^11.0.1"
+  },
+  "devDependencies": {
+    "electron": "^38.1.2",
+    "electron-builder": "^24.13.3"
+  }
+}
