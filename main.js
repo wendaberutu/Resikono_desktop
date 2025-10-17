@@ -1,8 +1,7 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-const { SerialPort } = require('serialport');
-const fs = require('fs');
-
+const { app, BrowserWindow, ipcMain } = require("electron");
+const path = require("path");
+const { SerialPort } = require("serialport");
+const fs = require("fs");
 const userDataPath = app.getPath("userData");
 const pengaturanPath = path.join(userDataPath, "pengaturan.json");
 const hasilImagePath = path.join(userDataPath, "hasil");
@@ -10,10 +9,11 @@ console.log("PENGATURAN JSON PATH:", pengaturanPath);
 
 let win;
 let port;
-const VENDOR = '1a86';
-const PRODUCT = '7523';
+const VENDOR = "1a86";
+const PRODUCT = "7523";
 
 let ports = [];
+
 let isProcessing = false;
 
 // Parser state
@@ -49,6 +49,7 @@ function createWindow() {
 
   win.setMenuBarVisibility(false);
   win.setAutoHideMenuBar(true);
+
   win.loadFile("index.html");
 }
 
@@ -59,30 +60,34 @@ app.whenReady().then(() => {
   }
   createWindow();
 });
-
 // ========================
 // Serial Handling
 // ========================
 
 function tryOpenPort() {
-  SerialPort.list().then(list => {
-    const devs = list.filter(d =>
-      d.vendorId && d.productId &&
-      d.vendorId.toLowerCase() === VENDOR &&
-      d.productId.toLowerCase() === PRODUCT
-    );
+  SerialPort.list()
+    .then((list) => {
+      const devs = list.filter(
+        (d) =>
+          d.vendorId &&
+          d.productId &&
+          d.vendorId.toLowerCase() === VENDOR &&
+          d.productId.toLowerCase() === PRODUCT
+      );
 
-    if (devs.length === 0) {
-      console.log('[MAIN] No matching devices found');
-      return;
-    }
-
-    devs.forEach(dev => {
-      if (!ports.some(p => p.path === dev.path && p.isOpen)) {
-        openPort(dev.path);
+      if (devs.length === 0) {
+        console.log("[MAIN] No matching devices found");
+        return;
       }
-    });
-  }).catch(err => console.error('[MAIN] List error:', err));
+
+      devs.forEach((dev) => {
+        // cek apakah port ini sudah dibuka
+        if (!ports.some((p) => p.path === dev.path && p.isOpen)) {
+          openPort(dev.path);
+        }
+      });
+    })
+    .catch((err) => console.error("[MAIN] List error:", err));
 }
 
 function openPort(path) {
@@ -90,26 +95,28 @@ function openPort(path) {
     path,
     baudRate: 1000000,
     autoOpen: false,
-    highWaterMark: 20000000
+    highWaterMark: 20000000,
   });
 
-  port.open(err => {
+  port.open((err) => {
     if (err) {
       console.error(`[MAIN] Failed to open port ${path}`, err);
       return;
     }
-    console.log('[MAIN] Serial port opened', path);
+    console.log("[MAIN] Serial port opened", path);
     resetParserState();
   });
 
-  port.on('data', onData);
-  port.on('error', err => console.error(`[MAIN] Serial error on ${path}`, err));
-  port.on('close', () => {
+  port.on("data", onData);
+  port.on("error", (err) =>
+    console.error(`[MAIN] Serial error on ${path}`, err)
+  );
+  port.on("close", () => {
     console.log(`[MAIN] Serial closed on ${path}, retrying...`);
-    setTimeout(() => tryOpenPort(), 5000);
+    setTimeout(() => tryOpenPort(), 1500);
   });
 
-  ports.push(port);
+  ports.push(port); // simpan port
 }
 
 setInterval(tryOpenPort, 1500);
@@ -137,61 +144,114 @@ function resetParserState() {
 }
 
 let frameSent = false;
+
 let lastChunkTime = Date.now();
 
+// Reset otomatis bila parser tidak ter-update 10 detik
+setInterval(() => {
+  if (isProcessing && Date.now() - lastChunkTime > 10000) {
+    console.warn("[MAIN] ⏱️ Tidak ada data 10 detik — reset parser");
+    resetParserState();
+    isProcessing = false;
+    win?.webContents?.send(
+      "busy",
+      "Koneksi terputus — parser direset otomatis"
+    );
+  }
+}, 3000);
 function onData(chunk) {
   const now = Date.now();
 
-  if (now - lastChunkTime > 5000) {
-    console.warn("[MAIN] Parser timeout — reset state");
+  // Timeout 5 detik tanpa data baru → reset parser
+  if (now - lastChunkTime > 100) {
+    console.warn("[MAIN] ⚠️ Parser timeout — reset state");
     resetParserState();
   }
   lastChunkTime = now;
 
   try {
     let offset = 0;
-    while (offset < chunk.length) {
+    let loopCount = 0; // 🔒 loop safety
 
+    while (offset < chunk.length) {
+      loopCount++;
+      if (loopCount > 100000) {
+        // misal maksimum 100 ribu iterasi
+        console.warn("[MAIN] 🚨 Loop overflow, reset parser");
+        resetParserState();
+        return;
+      }
+
+      // =========================
       // 1️⃣ STATUS MARKER (AB CD)
-      if (chunk[offset] === 0xAB && offset + 3 < chunk.length && chunk[offset + 1] === 0xCD) {
+      // =========================
+      if (
+        chunk[offset] === 0xab &&
+        offset + 3 < chunk.length &&
+        chunk[offset + 1] === 0xcd
+      ) {
         const len = chunk.readUInt16LE(offset + 2);
-        if (offset + 4 + len + 1 > chunk.length) break; // belum lengkap
+        if (offset + 4 + len + 1 > chunk.length) break; // belum lengkap → tunggu chunk berikutnya
         const msg = chunk.slice(offset + 4, offset + 4 + len).toString();
         const endMarker = chunk[offset + 4 + len];
-        if (endMarker === 0xEF) {
-          win?.webContents?.send('status-fokus', msg);
-          console.log('[STATUS]', msg);
+        if (endMarker === 0xef) {
+          win?.webContents?.send("status-fokus", msg);
+          console.log("[STATUS]", msg);
         }
         offset += 4 + len + 1;
         continue;
       }
 
+      // =========================
       // 2️⃣ Marker awal frame (AA 55)
+      // =========================
       if (parserState.waitingMarker) {
-        if (chunk[offset] === 0xAA && offset + 1 < chunk.length && chunk[offset + 1] === 0x55) {
+        if (
+          chunk[offset] === 0xaa &&
+          offset + 1 < chunk.length &&
+          chunk[offset + 1] === 0x55
+        ) {
           parserState.waitingMarker = false;
           parserState.waitingSize = true;
           parserState.markerReceived = 2;
           offset += 2;
         } else {
-          offset++;
+          offset++; // geser byte 1
         }
         continue;
       }
 
+      // =========================
       // 3️⃣ Ukuran frame (4 byte)
+      // =========================
       if (parserState.waitingSize) {
-        const toCopy = Math.min(4 - parserState.sizeReceived, chunk.length - offset);
-        chunk.copy(parserState.sizeBuffer, parserState.sizeReceived, offset, offset + toCopy);
+        const toCopy = Math.min(
+          4 - parserState.sizeReceived,
+          chunk.length - offset
+        );
+        chunk.copy(
+          parserState.sizeBuffer,
+          parserState.sizeReceived,
+          offset,
+          offset + toCopy
+        );
         parserState.sizeReceived += toCopy;
         offset += toCopy;
 
         if (parserState.sizeReceived === 4) {
           parserState.frameSize = parserState.sizeBuffer.readUInt32LE(0);
 
+          // Validasi ukuran frame
           if (parserState.frameSize <= 0 || parserState.frameSize > 500000) {
+            console.warn(
+              "[MAIN] ❌ Frame size tidak valid:",
+              parserState.frameSize
+            );
             resetParserState();
-            win?.webContents?.send("busy", `Frame size tidak valid: ${parserState.frameSize}`);
+            win?.webContents?.send(
+              "busy",
+              `Frame size tidak valid: ${parserState.frameSize}`
+            );
             return;
           }
 
@@ -203,43 +263,74 @@ function onData(chunk) {
         continue;
       }
 
-      // 4️⃣ 2 byte kode alat
+      // =========================
+      // 4️⃣ Kode alat (2 byte)
+      // =========================
       if (parserState.kodeAlatReceived < 2) {
-        const toCopy = Math.min(2 - parserState.kodeAlatReceived, chunk.length - offset);
-        chunk.copy(parserState.kodeAlatBytes, parserState.kodeAlatReceived, offset, offset + toCopy);
+        const toCopy = Math.min(
+          2 - parserState.kodeAlatReceived,
+          chunk.length - offset
+        );
+        chunk.copy(
+          parserState.kodeAlatBytes,
+          parserState.kodeAlatReceived,
+          offset,
+          offset + toCopy
+        );
         parserState.kodeAlatReceived += toCopy;
         offset += toCopy;
 
         if (parserState.kodeAlatReceived === 2) {
-          parserState.kodeAlat = parserState.kodeAlatBytes.toString('utf8');
+          parserState.kodeAlat = parserState.kodeAlatBytes.toString("utf8");
         }
         continue;
       }
 
-      // 5️⃣ Salin isi frame
-      const toCopy = Math.min(parserState.frameSize - parserState.frameReceived, chunk.length - offset);
-      chunk.copy(parserState.frameBuffer, parserState.frameReceived, offset, offset + toCopy);
+      // =========================
+      // 5️⃣ Isi frame (gambar)
+      // =========================
+      const toCopy = Math.min(
+        parserState.frameSize - parserState.frameReceived,
+        chunk.length - offset
+      );
+      chunk.copy(
+        parserState.frameBuffer,
+        parserState.frameReceived,
+        offset,
+        offset + toCopy
+      );
       parserState.frameReceived += toCopy;
       offset += toCopy;
 
-      // 6️⃣ Kalau frame lengkap, cek end marker
-      if (parserState.frameReceived === parserState.frameSize && offset + 2 <= chunk.length) {
+      // =========================
+      // 6️⃣ End marker (DE AD)
+      // =========================
+      if (
+        parserState.frameReceived === parserState.frameSize &&
+        offset + 2 <= chunk.length
+      ) {
         const end1 = chunk[offset++];
         const end2 = chunk[offset++];
 
-        if (end1 === 0xDE && end2 === 0xAD) {
+        if (end1 === 0xde && end2 === 0xad) {
           try {
-            const b64 = parserState.frameBuffer.toString('base64');
-            win?.webContents?.send('frame', { b64, kodeAlat: parserState.kodeAlat });
+            const b64 = parserState.frameBuffer.toString("base64");
+            win?.webContents?.send("frame", {
+              b64,
+              kodeAlat: parserState.kodeAlat,
+            });
             saveFrame(b64, parserState.kodeAlat);
+            console.log(
+              `[MAIN] ✅ Frame ${parserState.kodeAlat} diterima (${parserState.frameSize} bytes)`
+            );
           } catch (err) {
-            console.error('[MAIN] Error sending frame:', err);
+            console.error("[MAIN] Error sending frame:", err);
           } finally {
             isProcessing = false;
             resetParserState();
           }
         } else {
-          console.warn("[MAIN] Invalid end marker:", end1, end2);
+          console.warn("[MAIN] ⚠️ Invalid end marker:", end1, end2);
           resetParserState();
         }
       }
@@ -255,38 +346,41 @@ function onData(chunk) {
 // ========================
 let processingTimeout = null;
 
-ipcMain.on('request-image', (event, inputParam) => {
+ipcMain.on("request-image", (event, inputParam) => {
   resetParserState();
+  new Promise((resolve) => setTimeout(resolve, 200));
+
   if (ports.length === 0) return;
 
   if (isProcessing) {
     console.warn("[MAIN] ⛔ Permintaan ditolak — masih proses sebelumnya");
     if (win && win.webContents)
-      win.webContents.send('busy', 'Masih memproses gambar sebelumnya...');
+      win.webContents.send("busy", "Masih memproses gambar sebelumnya...");
     return;
   }
 
   isProcessing = true;
   console.log("[MAIN] 🚀 Mulai proses pengambilan gambar...");
 
+  // Set timeout 5 detik → otomatis reset jika tidak ada respons
   processingTimeout = setTimeout(() => {
     console.warn("[MAIN] ⏱️ Timeout — reset status proses");
     isProcessing = false;
     if (win && win.webContents)
-      win.webContents.send('busy', 'Timeout: tidak ada respons dari alat.');
-  }, 10000);
+      win.webContents.send("busy", "Timeout: tidak ada respons dari alat.");
+  }, 1200);
 
-  let kodeAlat = '';
-  if (typeof inputParam === 'string') {
+  let kodeAlat = "";
+  if (typeof inputParam === "string") {
     kodeAlat = inputParam;
   }
-  const cmd = kodeAlat + '\n';
+  const cmd = kodeAlat + "\n";
 
-  ports.forEach(p => {
+  ports.forEach((p) => {
     if (p.isOpen) {
-      p.write(cmd, err => {
+      p.write(cmd, (err) => {
         if (err) {
-          console.error('[MAIN] Write error on', p.path, err);
+          console.error("[MAIN] Write error on", p.path, err);
           isProcessing = false;
           clearTimeout(processingTimeout);
         }
@@ -295,24 +389,31 @@ ipcMain.on('request-image', (event, inputParam) => {
   });
 });
 
-ipcMain.on('request-fokus', (event, inputParam) => {
-  const cmd = inputParam + '\n';
+ipcMain.on("request-fokus", (event, inputParam) => {
+  const cmd = inputParam + "\n";
 
   console.log("permintaan", inputParam);
-  ports.forEach(p => {
+  // Kirim ke semua port
+  ports.forEach((p) => {
     if (p.isOpen) {
-      p.write(cmd, err => {
-        if (err) console.error('[MAIN] Write error on', p.path, err);
+      p.write(cmd, (err) => {
+        if (err) console.error("[MAIN] Write error on", p.path, err);
       });
     }
   });
 });
 
+
+// buat folder hasil kalau belum ada
+const hasilDir = path.join(__dirname, "hasil");
+if (!fs.existsSync(hasilDir)) {
+  fs.mkdirSync(hasilDir);
+}
+
 // ========================
-// Simpan gambar dari renderer
+// Simpan gambar tiap 5 detik
 // ========================
 let lastSave = 0;
-
 ipcMain.on("simpan-gambar", (event, base64img, kodeAlat) => {
   try {
     const cleanBase64 = base64img.replace(/^data:image\/\w+;base64,/, "");
@@ -324,24 +425,26 @@ ipcMain.on("simpan-gambar", (event, base64img, kodeAlat) => {
 
 // ========================
 // Simpan frame ke file
-// ========================
 function saveFrame(b64, kodeAlat) {
   const now = Date.now();
+  // if (now - lastSave < 5000) return; // jaga interval 5 detik
+
   lastSave = now;
 
-  const buffer = Buffer.from(b64, 'base64');
-  const filename = `${kodeAlat}_${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+  const buffer = Buffer.from(b64, "base64");
+  const filename = `${kodeAlat}_${new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-")}.jpg`;
   const filepath = path.join(hasilImagePath, filename);
 
-  fs.writeFile(filepath, buffer, err => {
+  fs.writeFile(filepath, buffer, (err) => {
     if (err) {
-      console.error('[MAIN] Gagal simpan gambar:', err);
+      console.error("[MAIN] Gagal simpan gambar:", err);
     } else {
-      console.log('[MAIN] Gambar disimpan:', filepath);
+      console.log("[MAIN] Gambar disimpan:", filepath);
     }
   });
 }
-
 // ====================================
 // setting dan Load handler
 // =======================================
@@ -357,6 +460,7 @@ ipcMain.handle("loadSettings", async () => {
   }
 });
 
+//=== menyimpan pengaturan ===
 ipcMain.handle("saveSettings", async (event, settingsData) => {
   try {
     fs.writeFileSync(pengaturanPath, JSON.stringify(settingsData, null, 2));
