@@ -3,51 +3,86 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>RESIKONO</title>
+    <title>RESIKONO JIDUN</title>
     <style>
         #mainGrid {
-            width: 100%;
+            width: 100vw;
             height: 100vh;
-            padding: 10px;
+            padding: 0 0 0 0;
             box-sizing: border-box;
+            background: #f5f5f5;
         }
 
         #mainGrid .grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 0.5fr;
-            /* 3 kamera besar + slider kecil */
-            gap: 10px;
-            height: calc(100% - 50px);
-            /* sisakan ruang buat h2 */
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) 0.9fr;
+            /* 3/4 kamera + status */
+            gap: 20px;
+            height: calc(100vh - 90px);
+            /* sisakan ruang buat judul */
+            align-items: stretch;
+            margin: 0 20px;
         }
 
-        .cameraBox {
+        .cameraBox,
+        .status-container {
             background: #fff;
-            border-radius: 8px;
-            padding: 8px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.13);
             display: flex;
             flex-direction: column;
             align-items: center;
+            height: 100%;
+            padding: 18px 12px 16px 12px;
         }
 
+        .cameraBox h3 {
+            margin: 0 0 10px 0;
+            font-size: 19px;
+            text-align: center;
+        }
+
+        .canvasContainer {
+            flex: 1 1 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+        }
 
         .canvasContainer img,
         .canvasContainer canvas {
-            width: 100%;
-            height: auto;
-            display: block;
+            width: 95%;
+            max-width: 400px;
+            height: 45%;
+            min-height: 120px;
+            max-height: 320px;
+            background: #fff;
+            border: 1px solid #aaa;
+            border-radius: 7px;
+            box-sizing: border-box;
+            margin: 0 auto;
+            object-fit: contain;
         }
 
-        .controls {
-            background: #f9f9f9;
-            border-radius: 8px;
-            padding: 10px;
-            font-size: 14px;
+        .status-container {
+            min-width: 240px;
+            max-width: 340px;
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
         }
 
+        .count {
+            margin-top: 14px;
+            font-weight: bold;
+            color: red;
+            text-align: center;
+            font-size: 17px;
+        }
 
         body {
             margin: 0;
@@ -56,187 +91,32 @@
         }
 
         h2 {
-            grid-column: span 2;
             text-align: center;
-            margin: 10px 0;
-            color: #333;
+            margin: 22px 0 18px 0;
+            color: #222;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
         }
 
-        .cameraBox,
-        .controls {
-            background: #fff;
-            padding: 10px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            align-items: top;
-            justify-content: top;
-        }
-
-        .cameraBox h3 {
-            margin: 5px 0;
-        }
-
-        .canvasContainer img,
-        .canvasContainer canvas {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
-
-
-        canvas,
-        img {
-            border: 1px solid #333;
-            border-radius: 5px;
-            max-width: 100%;
-            max-height: 320px;
-        }
-
-        .count {
-            margin-top: 5px;
-            font-weight: bold;
-            color: red;
-        }
-
-        label {
-            display: block;
-            margin: 10px 0 5px;
-            font-weight: bold;
-        }
-
-        input[type=range] {
-            width: 100%;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
+        @media (max-width: 1200px) {
+            #mainGrid .grid {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: auto auto auto;
+                height: auto;
             }
 
-            100% {
-                transform: rotate(360deg);
+            .status-container {
+                grid-column: 1 / span 2;
+                max-width: 100%;
+                margin-top: 18px;
+                height: auto;
             }
-        }
-
-        #loadingPopup {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            font-size: 20px;
-            color: white;
-            z-index: 9999;
-        }
-
-        #loadingPopup .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255, 255, 255, 0.3);
-            border-top: 5px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 15px;
-        }
-
-        .controls-row {
-            display: flex;
-            align-items: center;
-            font-size: 18px;
-            /* supaya sejajar vertikal */
-            margin-bottom: 5px;
-            /* jarak antar label */
-        }
-
-        .status-wrapper {
-            text-align: center;
-            /* teks di tengah horizontal */
-        }
-
-        #status-kebersihan {
-            display: inline-block;
-            /* supaya bisa di-align */
-            font-weight: bold;
-            /* opsional, biar kelihatan */
-        }
-
-        .settings-btn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            padding: 8px 12px;
-            border-radius: 5px;
-            border: none;
-            background: #007bff;
-            color: white;
-            cursor: pointer;
-        }
-
-        .settings-popup {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 300px;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-            padding: 20px;
-            z-index: 1001;
-        }
-
-        .settings-popup h3 {
-            margin-top: 0;
-            text-align: center;
-        }
-
-        .settings-input {
-            width: 100%;
-            padding: 5px;
-            margin-bottom: 10px;
-            box-sizing: border-box;
-        }
-
-        .settings-submit {
-            width: 100%;
-            padding: 5px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .settings-content {
-            display: none;
-            margin-top: 15px;
-        }
-
-        .settings-content label {
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .settings-close {
-            margin-top: 10px;
-            width: 100%;
-            padding: 5px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
         }
     </style>
+    <!-- Tambahkan ini di bagian <head> atau sebelum script JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
     <script src="js/opencv.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -245,153 +125,126 @@
 </head>
 
 <body>
-    <div>
-        <!-- Custom Alert -->
-        <div id="customAlert"
-            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[60]">
-            <div class="bg-white rounded-lg p-6 w-80 shadow-lg text-center border-t-4 border-red-600">
-                <div class="flex flex-col items-center text-red-700">
-                    <i class="fas fa-exclamation-triangle text-4xl mb-3"></i>
-                    <p id="customAlertMessage" class="mb-4 font-semibold"></p>
-                </div>
-                <button onclick="closeCustomAlert()" class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                    OK
-                </button>
-            </div>
-        </div>
-        <div id="customConfirmModal"
-            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[70]">
-            <div class="bg-white rounded-lg p-6 w-96 shadow-lg text-center border-t-4 border-yellow-500">
-                <div class="flex justify-center text-yellow-600 text-4xl mb-3">
-                    <i class="fas fa-question-circle"></i>
-                </div>
-                <p id="customConfirmMessage" class="mb-6 font-semibold text-lg"></p>
-                <div class="flex justify-center gap-4">
-                    <button id="confirmBtnCancel" class="px-6 py-2 bg-gray-300 rounded hover:bg-gray-400">
-                        Batal
-                    </button>
-                    <button id="confirmBtnOk" class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                        Ya, Lanjutkan
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div id="mainGrid">
         <div class="relative w-full mb-4">
-            <!-- Judul tetap di tengah -->
-            <h2 class="text-xl font-bold text-center mt-4">RESIKONO</h2>
+            <h2 class="text-xl font-bold text-center mt-4">RESIKONO JIDUN</h2>
         </div>
-
-
-        <!-- Grid utama -->
-        <div class="grid">
-            <!-- Grid 1 -->
-            <div class="cameraBox" id="boxKN">
-                <h3>Kamera Kanan</h3>
-                <div class="canvasContainer">
-                    <img id="imgKN" width="480" height="360">
-                    <canvas id="detectKN" width="480" height="360"></canvas>
+        <div>
+            <!-- Kamera Box Grid -->
+            <div class="grid grid-cols-5 gap-4">
+                <!-- Kamera Kanan -->
+                <div class="cameraBox" id="boxKN">
+                    <h3>Kamera Kanan</h3>
+                    <div class="canvasContainer">
+                        <img id="imgKN" width="300" height="360">
+                        <canvas id="detectKN" width="300" height="360"></canvas>
+                    </div>
+                    <div class="count" id="countKN">Kotoran: 0</div>
                 </div>
-                <div class="count" id="countKN">Kotoran: 0</div>
-            </div>
-
-            <!-- Grid 2 -->
-            <div class="cameraBox" id="boxKR">
-                <h3>Kamera Kiri</h3>
-                <div class="canvasContainer">
-                    <img id="imgKR" width="480" height="360">
-                    <canvas id="detectKR" width="480" height="360"></canvas>
+                <!-- Kamera Kiri -->
+                <div class="cameraBox" id="boxKR">
+                    <h3>Kamera Kiri</h3>
+                    <div class="canvasContainer">
+                        <img id="imgKR" width="300" height="360">
+                        <canvas id="detectKR" width="300" height="360"></canvas>
+                    </div>
+                    <div class="count" id="countKR">Kotoran: 0</div>
                 </div>
-                <div class="count" id="countKR">Kotoran: 0</div>
-            </div>
-
-            <!-- Grid 3 -->
-            <div class="cameraBox" id="boxBW">
-                <h3>Kamera Bawah</h3>
-                <div class="canvasContainer">
-                    <img id="imgBW" width="480" height="360">
-                    <canvas id="detectBW" width="480" height="360"></canvas>
+                <!-- Kamera Bawah -->
+                <div class="cameraBox" id="boxBW">
+                    <h3>Kamera Bawah</h3>
+                    <div class="canvasContainer">
+                        <img id="imgBW" width="300" height="360">
+                        <canvas id="detectBW" width="300" height="360"></canvas>
+                    </div>
+                    <div class="count" id="countBW">Kotoran: 0</div>
                 </div>
-                <div class="count" id="countBW">Kotoran: 0</div>
-            </div>
-            <!-- Container Status Terima/Tidak -->
-            <div class="status-container relative p-4 border rounded-lg shadow-md bg-white w-64">
-                <!-- Header jumlah titik -->
-                <div class="controls-row mb-3 text-center">
-                    <label class="font-semibold me-2">Jumlah titik kotor: </label>
-                    <label id="jumlah_titik" class="font-bold text-red-600">-</label>
-                </div>
-
-                <!-- Icon status -->
-                <div class="status flex justify-center mb-3">
-                    <img id="statusIMG" src="icons/bersih.jpg" alt="status"
-                        class="w-24 h-24 object-contain border-none outline-none shadow-none">
+                <!-- Kamera Atas (Baru Ditambah) -->
+                <div class="cameraBox" id="boxAT">
+                    <h3>Kamera Atas</h3>
+                    <div class="canvasContainer">
+                        <img id="imgAT" width="300" height="360">
+                        <canvas id="detectAT" width="300" height="360"></canvas>
+                    </div>
+                    <div class="count" id="countAT">Kotoran: 0</div>
                 </div>
 
-                <!-- Pesan status -->
-                <div class="status-wrapper text-center mb-4">
-                    <label id="status-kebersihan" class="text-sm font-medium text-gray-700">
-                        Yuk Dicek Kebersihan Sarangnya
-                    </label>
-                </div>
+                <!-- Status Container -->
+                <div class="status-container relative p-4 border rounded-lg shadow-md bg-white w-64">
+                    <!-- Header jumlah titik -->
+                    <div class="controls-row mb-3 text-center">
+                        <label class="font-semibold me-2">Jumlah titik kotor: </label>
+                        <label id="jumlah_titik" class="font-bold text-red-600">-</label>
+                    </div>
 
-                <!-- ====== Bagian bawah: Status fokus + tombol ====== -->
-                <div class="absolute bottom-2 left-0 w-full px-2">
-                    <!-- Status + tombol fokuskan -->
-                    <div class="flex flex-col space-y-1 mb-2">
-                        <!-- Kanan -->
-                        <div class="flex items-center space-x-2">
-                            <label id="status_fokus_kamera_kanan"
-                                class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
-                                <i class="fas fa-camera text-gray-700"></i>
-                                <span>Kanan: Belum fokus</span>
-                            </label>
-                            <button onclick="Fokuskan('fokusKameraKanan')"
-                                class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
-                                Fokuskan
-                            </button>
+                    <!-- Icon status -->
+                    <div class="status flex justify-center mb-3">
+                        <img id="statusIMG" src="icons/bersih.ico" alt="status"
+                            class="w-24 h-24 object-contain border-none outline-none shadow-none">
+                    </div>
+
+                    <!-- Pesan status -->
+                    <div class="status-wrapper text-center mb-4">
+                        <label id="status-kebersihan" class="text-sm font-medium text-gray-700">
+                            Yuk Dicek Kebersihan Sarangnya
+                        </label>
+                    </div>
+
+                    <!-- ====== Bagian bawah: Status fokus + tombol ====== -->
+                    <div class="absolute bottom-2 left-0 w-full px-2">
+                        <!-- Status + tombol fokuskan -->
+                        <div class="flex flex-col space-y-1 mb-2">
+                            <!-- Kanan -->
+                            <div class="flex items-center space-x-2">
+                                <label id="status_fokus_kamera_kanan"
+                                    class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
+                                    <i class="fas fa-camera text-gray-700"></i>
+                                    <span>Kanan: Belum fokus</span>
+                                </label>
+                                <button onclick="Fokuskan('fokusKameraKanan')"
+                                    class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
+                                    Fokuskan
+                                </button>
+                            </div>
+
+                            <!-- Kiri -->
+                            <div class="flex items-center space-x-2">
+                                <label id="status_fokus_kamera_kiri"
+                                    class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
+                                    <i class="fas fa-camera text-gray-700"></i>
+                                    <span>Kiri: Belum fokus</span>
+                                </label>
+                                <button onclick="Fokuskan('fokusKameraKiri')"
+                                    class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
+                                    Fokuskan
+                                </button>
+                            </div>
+
+                            <!-- Bawah -->
+                            <div class="flex items-center space-x-2">
+                                <label id="status_fokus_kamera_bawah"
+                                    class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
+                                    <i class="fas fa-camera text-gray-700"></i>
+                                    <span>Bawah: Belum fokus</span>
+                                </label>
+                                <button onclick="Fokuskan('fokusKameraBawah')"
+                                    class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
+                                    Fokuskan
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Kiri -->
-                        <div class="flex items-center space-x-2">
-                            <label id="status_fokus_kamera_kiri"
-                                class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
-                                <i class="fas fa-camera text-gray-700"></i>
-                                <span>Kiri: Belum fokus</span>
-                            </label>
-                            <button onclick="Fokuskan('fokusKameraKiri')"
-                                class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
-                                Fokuskan
-                            </button>
-                        </div>
-
-                        <!-- Bawah -->
-                        <div class="flex items-center space-x-2">
-                            <label id="status_fokus_kamera_bawah"
-                                class="flex-1 flex items-center space-x-1 text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow">
-                                <i class="fas fa-camera text-gray-700"></i>
-                                <span>Bawah: Belum fokus</span>
-                            </label>
-                            <button onclick="Fokuskan('fokusKameraBawah')"
-                                class="text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
-                                Fokuskan
+                        <!-- Tombol Setting -->
+                        <div class="flex justify-center mt-2">
+                            <button onclick="showKodeUserModal()"
+                                class="w-full text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
+                                <i class="fas fa-cog mr-1"></i>
+                                <span>Setting</span>
                             </button>
                         </div>
                     </div>
-
-                    <!-- Tombol Setting -->
-                    <div class="flex justify-center mt-2">
-                        <button onclick="showKodeUserModal()"
-                            class="w-full text-xs font-bold bg-white border border-gray-400 rounded-md px-2 py-1 shadow hover:bg-gray-900 hover:text-white transition">
-                            <i class="fas fa-cog mr-1"></i>
-                            <span>Setting</span>
-                        </button>
-                    </div>
                 </div>
             </div>
-
             <!-- Modal Kode User -->
             <div id="modalKodeUser"
                 class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
@@ -657,6 +510,8 @@
                     frame = enhanceDarkContrast(frame);
                     console.log("kodeAlat", kodeAlat);
 
+                    console.log("frame gambar", frame);
+
                     if (kodeAlat == "BW") {
                         frame = enhanceContrastCLAHE(frame, kernel_size = 32, contrast_faktor = 1.3);
                     } else {
@@ -665,6 +520,10 @@
 
                     buf.ctx.putImageData(frame, 0, 0);
                     buf.img.src = buf.canvas.toDataURL();
+
+                    // Kirim ke main process untuk disimpan
+                    const base64img = buf.canvas.toDataURL("image/jpeg", 0.9);
+                    window.electronAPI.simpanGambar(base64img, kodeAlat);
 
                     if (cv) {
                         const t0 = performance.now(); // mulai hitung
@@ -732,17 +591,18 @@
                             document.getElementById('countBW').innerText = 'Kotoran: 0';
 
                             try {
+                                await new Promise(resolve => setTimeout(resolve, 200));
                                 // Kamera kanan
                                 await window.electronAPI.requestImage("gambarKameraKanan");
-                                await new Promise(resolve => setTimeout(resolve, 2500));
+                                await new Promise(resolve => setTimeout(resolve, 1500));
 
                                 // Kamera kiri
                                 await window.electronAPI.requestImage("gambarKameraKiri");
-                                await new Promise(resolve => setTimeout(resolve, 2500));
+                                await new Promise(resolve => setTimeout(resolve, 1500));
 
                                 // Kamera bawah
                                 await window.electronAPI.requestImage("gambarKameraBawah");
-                                await new Promise(resolve => setTimeout(resolve, 2500));
+                                await new Promise(resolve => setTimeout(resolve, 1500));
 
                                 await updateKotoran();
                                 console.log("✅ Semua gambar berhasil diambil");
@@ -1144,6 +1004,7 @@
                     const kn = parseInt(knText.replace(/\D/g, ''), 10) || 0;
                     const kr = parseInt(krText.replace(/\D/g, ''), 10) || 0;
 
+
                     const jumlah = bw + kn + kr;
                     console.log("Kotoran:", jumlah);
                     document.getElementById('jumlah_titik').textContent = `${jumlah}`;
@@ -1181,7 +1042,7 @@
 
                         for (let i = 0; i < data.length; i += 4) {
                             const r = data[i], g = data[i + 1], b = data[i + 2];
-                            if (r > 240 && g > 240 && b > 240) whitePixels++;
+                            if (r > 255 && g > 255 && b > 255) whitePixels++;
                         }
 
                         const ratio = whitePixels / totalPixels;
@@ -1196,7 +1057,7 @@
 
                     // Jika ada yang putih → hentikan dan beri peringatan
                     if (isAnyWhite) {
-                       showAlert("❌ Deteksi gagal: salah satu gambar masih putih.\nSilakan tekan Enter lagi untuk mengulang deteksi.","error");
+                        showAlert(" Deteksi gagal: salah satu gambar masih putih.\nSilakan tekan Enter lagi untuk mengulang deteksi.", "error");
                         hideLoading();
                         status_deteksi = false;
                         return; // berhenti di sini, tidak lanjut ke penilaian
@@ -1207,28 +1068,27 @@
                     const statusLabel = document.getElementById('status-kebersihan');
 
                     if (jumlah >= 0 && jumlah < batas / 2) {
-                        statusImg.src = 'icons/sangat_bersih.jpg';
+                        statusImg.src = 'icons/sangat_bersih.ico';
                         statusLabel.textContent = '✅ DITERIMA — Wah.. Sangat Bersih! Kamu Hebat. Pertahankan ya';
                         statusLabel.style.color = 'green';
                     } else if (jumlah >= batas / 2 && jumlah < batas) {
-                        statusImg.src = 'icons/bersih.jpg';
+                        statusImg.src = 'icons/bersih.ico';
                         statusLabel.textContent = '✅ DITERIMA — Sudah Bersih, Kerja Bagus!. Lanjutkan ya';
                         statusLabel.style.color = 'limegreen';
-                    } else if (jumlah >= batas + 1 && jumlah < batas * 1.5) {
-                        statusImg.src = 'icons/kotor_dikit.jpg';
+                    } else if (jumlah >= batas + 1 && jumlah < batas * 1.1) {
+                        statusImg.src = 'icons/kotor_dikit.ico';
                         statusLabel.textContent = '⚠️ DITOLAK — Masih Kotor Sedikit, Yukkk bersihin dikit lagi.';
                         statusLabel.style.color = 'orange';
-                    } else if (jumlah >= batas * 1.5 && jumlah < batas * 2) {
-                        statusImg.src = 'icons/kotor.jpg';
+                    } else if (jumlah >= batas * 1.1 && jumlah < batas * 2) {
+                        statusImg.src = 'icons/kotor.ico';
                         statusLabel.textContent = '❌ DITOLAK — Masih Kotor, Segera Dibersihkan ya. Semangat!';
                         statusLabel.style.color = 'orangered';
                     } else {
-                        statusImg.src = 'icons/sangat_kotor.jpg';
+                        statusImg.src = 'icons/sangat_kotor.ico';
                         statusLabel.textContent = '❌ DITOLAK — Wahh.. Masih Kotor Sekali, Yuk bersihin lagi. Semangat ya.....';
                         statusLabel.style.color = 'red';
                     }
                 }
-
 
 
                 async function Fokuskan(lokasi_kamera) {

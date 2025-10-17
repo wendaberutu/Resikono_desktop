@@ -627,6 +627,8 @@
                     frame = enhanceContrastCLAHE(frame);
                     frame = enhanceDarkContrast(frame);
                     console.log("kodeAlat", kodeAlat);
+                
+                    console.log("frame gambar", frame);
 
                     if (kodeAlat == "BW") {
                         frame = enhanceContrastCLAHE(frame, kernel_size = 32, contrast_faktor = 1.3);
@@ -707,18 +709,18 @@
                             document.getElementById('countBW').innerText = 'Kotoran: 0';
 
                             try {
-                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                await new Promise(resolve => setTimeout(resolve, 200));
                                 // Kamera kanan
                                 await window.electronAPI.requestImage("gambarKameraKanan");
-                                await new Promise(resolve => setTimeout(resolve, 2000));
+                                await new Promise(resolve => setTimeout(resolve, 1500));
 
                                 // Kamera kiri
                                 await window.electronAPI.requestImage("gambarKameraKiri");
-                                await new Promise(resolve => setTimeout(resolve, 2000));
+                                await new Promise(resolve => setTimeout(resolve, 1500));
 
                                 // Kamera bawah
                                 await window.electronAPI.requestImage("gambarKameraBawah");
-                                await new Promise(resolve => setTimeout(resolve, 2000));
+                                await new Promise(resolve => setTimeout(resolve, 1500));
 
                                 await updateKotoran();
                                 console.log("✅ Semua gambar berhasil diambil");
@@ -1158,7 +1160,7 @@
 
                         for (let i = 0; i < data.length; i += 4) {
                             const r = data[i], g = data[i + 1], b = data[i + 2];
-                            if (r > 255 && g > 255 && b > 2) whitePixels++;
+                            if (r > 255 && g > 255 && b > 255) whitePixels++;
                         }
 
                         const ratio = whitePixels / totalPixels;
@@ -1191,11 +1193,11 @@
                         statusImg.src = 'icons/bersih.ico';
                         statusLabel.textContent = '✅ DITERIMA — Sudah Bersih, Kerja Bagus!. Lanjutkan ya';
                         statusLabel.style.color = 'limegreen';
-                    } else if (jumlah >= batas + 1 && jumlah < batas * 1.5) {
+                    } else if (jumlah >= batas + 1 && jumlah < batas * 1.1) {
                         statusImg.src = 'icons/kotor_dikit.ico';
                         statusLabel.textContent = '⚠️ DITOLAK — Masih Kotor Sedikit, Yukkk bersihin dikit lagi.';
                         statusLabel.style.color = 'orange';
-                    } else if (jumlah >= batas * 1.5 && jumlah < batas * 2) {
+                    } else if (jumlah >= batas * 1.1 && jumlah < batas * 2) {
                         statusImg.src = 'icons/kotor.ico';
                         statusLabel.textContent = '❌ DITOLAK — Masih Kotor, Segera Dibersihkan ya. Semangat!';
                         statusLabel.style.color = 'orangered';

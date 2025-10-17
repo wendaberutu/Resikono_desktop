@@ -93,7 +93,7 @@ function tryOpenPort() {
 function openPort(path) {
   const port = new SerialPort({
     path,
-    baudRate: 1000000,
+    baudRate: 500000,
     autoOpen: false,
     highWaterMark: 20000000,
   });
@@ -368,7 +368,7 @@ ipcMain.on("request-image", (event, inputParam) => {
     isProcessing = false;
     if (win && win.webContents)
       win.webContents.send("busy", "Timeout: tidak ada respons dari alat.");
-  }, 1200);
+  }, 1500);
 
   let kodeAlat = "";
   if (typeof inputParam === "string") {

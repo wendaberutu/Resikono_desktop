@@ -10,7 +10,7 @@ cv["onRuntimeInitialized"] = async () => {
 
   // Buat session untuk model
   const [model_mangkok, model_kaki, nms, mask] = await Promise.all([
-    ort.InferenceSession.create(`models/model_deteksi_sarang_mangkok.onnx`),
+    ort.InferenceSession.create(`models/model_badan_sarang.onnx`),
     ort.InferenceSession.create(`models/model_deteksi_kaki_sarang_magkok.onnx`),
     ort.InferenceSession.create(`models/nms-yolov8.onnx`),
     ort.InferenceSession.create("models/mask-yolov8-seg.onnx"),
